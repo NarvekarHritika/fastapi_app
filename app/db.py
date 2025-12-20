@@ -1,10 +1,12 @@
 from collections.abc import AsyncGenerator
 import uuid
 import datetime
-from sqlalchemy import Column, String, Text, DateTime
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, relationship
+from fastapi_users.db import SQLAlchemyUserDatabase, SQLAlchemyBaseUserTableUUID
+from fastapi import Depends
 
 # Define the database URL for connecting to a SQLite database.
 # The database file will be named 'test.db' in the current directory.
@@ -18,15 +20,22 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(SQLAlchemyBaseUserTableUUID, Base):
+    posts = relationship(argument="Post", back_populates="user")
+
+
 # Define the 'Post' model which corresponds to the 'posts' table in the database.
 class Post(Base):
     __tablename__ = "posts"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
     caption = Column(Text, nullable=False)
     url = Column(String, nullable=False)
     file_type = Column(String, nullable=False)
     file_name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship(argument="User", back_populates="posts")
 
 
 # create DB:
@@ -55,3 +64,7 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         # The session is yielded to the calling function.
         yield session
         # The session is automatically closed when the 'with' block is exited.
+
+
+async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+    yield SQLAlchemyUserDatabase(session, User)

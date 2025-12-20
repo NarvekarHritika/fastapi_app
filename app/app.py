@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Depends
-from app.schemas import PostCreate, PostResponse
-from app.db import Post, create_db_and_tables, get_async_session
+from app.schemas import PostCreate, PostResponse, UserRead, UserCreate, UserUpdate
+from app.db import Post, create_db_and_tables, get_async_session, User
 from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
 from sqlalchemy import select
@@ -9,6 +9,8 @@ import os
 import shutil
 import tempfile
 import uuid
+
+from app.users import fastapi_users, auth_backend, current_active_user
 
 
 @asynccontextmanager
@@ -27,10 +29,36 @@ async def lifespan(app: FastAPI):
 # Create a FastAPI app instance, with the lifespan context manager.
 app = FastAPI(lifespan=lifespan)
 
+app.include_router(
+    fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
+)
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
+
+app.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix="/users",
+    tags=["users"],
+)
+
+app.include_router(
+    fastapi_users.get_reset_password_router(), prefix="/auth", tags=["auth"]
+)
+
+app.include_router(
+    fastapi_users.get_verify_router(UserRead),
+    prefix="/auth",
+    tags=["auth"],
+)
+
 
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
+    user: User = Depends(current_active_user),
     caption: str = Form(""),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -75,6 +103,7 @@ async def upload_file(
 
             # Create a new Post object with the data from the upload.
             post = Post(
+                user_id=user.id,
                 caption=caption,
                 url=upload_result.url,
                 file_type=file_type,
@@ -100,7 +129,10 @@ async def upload_file(
 
 
 @app.get("/feed")
-async def feed(session: AsyncSession = Depends(get_async_session)):
+async def get_feed(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
     """
     Retrieves a feed of all posts from the database.
 
@@ -125,6 +157,8 @@ async def feed(session: AsyncSession = Depends(get_async_session)):
                 "file_type": post.file_type,
                 "file_name": post.file_name,
                 "created_at": post.created_at.isoformat(),
+                "is_owner": post.user_id == user.id,
+                "email": user.email,
             }
         )
 
@@ -132,7 +166,11 @@ async def feed(session: AsyncSession = Depends(get_async_session)):
 
 
 @app.delete("/delete/{post_id}")
-async def delete_post(post_id: str, session: AsyncSession = Depends(get_async_session)):
+async def delete_post(
+    post_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
     """
     Deletes a post from the database.
 
@@ -152,6 +190,11 @@ async def delete_post(post_id: str, session: AsyncSession = Depends(get_async_se
         # If the post is not found, raise a 404 error.
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
+
+        if post.user_id != user.id:
+            raise HTTPException(
+                status_code=403, detail="You dont have access to delete this Post"
+            )
 
         # Delete the post from the database.
         await session.delete(post)
