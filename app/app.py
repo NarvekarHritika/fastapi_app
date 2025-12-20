@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Depends
-from app.schemas import PostCreate, PostResponse, UserRead, UserCreate, UserUpdate
+from app.schemas import UserRead, UserCreate, UserUpdate
 from app.db import Post, create_db_and_tables, get_async_session, User
 from sqlalchemy.ext.asyncio import AsyncSession
 from contextlib import asynccontextmanager
@@ -16,19 +16,20 @@ from app.users import fastapi_users, auth_backend, current_active_user
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    An asynchronous context manager for managing the application's lifespan.
-    This function is executed when the application starts and shuts down.
-    It ensures that the database and tables are created before the application starts accepting requests.
+    Asynchronous context manager to handle application startup and shutdown events.
+    This function ensures that the database and its tables are created before the
+    application starts serving requests.
     """
     # On startup, create the database and tables if they don't already exist.
     await create_db_and_tables()
-    # The 'yield' keyword passes control back to the application.
+    # 'yield' transfers control back to the application.
     yield
 
 
-# Create a FastAPI app instance, with the lifespan context manager.
+# Create a FastAPI app instance with the lifespan context manager.
 app = FastAPI(lifespan=lifespan)
 
+# Include routers for different functionalities.
 app.include_router(
     fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
 )
@@ -37,17 +38,14 @@ app.include_router(
     prefix="/auth",
     tags=["auth"],
 )
-
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
     tags=["users"],
 )
-
 app.include_router(
     fastapi_users.get_reset_password_router(), prefix="/auth", tags=["auth"]
 )
-
 app.include_router(
     fastapi_users.get_verify_router(UserRead),
     prefix="/auth",
@@ -63,22 +61,19 @@ async def upload_file(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Handles file uploads.
-
-    This endpoint accepts a file and a caption, uploads the file to ImageKit,
-    and creates a new 'Post' record in the database with the file's metadata.
-
+    Handles file uploads, storing them in ImageKit and creating a 'Post' record.
+    This endpoint accepts a file and an optional caption. The file is uploaded to
+    ImageKit, and a new 'Post' entry is created in the database with the file's
+    metadata and the user's caption.
     Args:
-        file: The file to upload.
-        caption: The caption for the post.
+        file: The file to be uploaded (image or video).
+        user: The currently authenticated user, obtained from the dependency.
+        caption: An optional caption for the post.
         session: The database session, injected as a dependency.
-
     Returns:
-        The newly created Post object.
+        The newly created Post object, including its database ID and timestamp.
     """
-    # A temporary file path is used to store the uploaded file before uploading to ImageKit.
     temp_file_path = None
-
     try:
         # Create a temporary file to save the uploaded content.
         # 'delete=False' is important to be able to read it later.
@@ -87,10 +82,9 @@ async def upload_file(
             delete=False, suffix=os.path.splitext(file.filename)[1]
         ) as temp_file:
             temp_file_path = temp_file.name
-            # Copy the uploaded file's content to the temporary file.
             shutil.copyfileobj(file.file, temp_file)
 
-            # Upload the file to ImageKit from the temporary path.
+            # Upload the file to ImageKit.
             upload_result = imagekit.files.upload(
                 file=open(temp_file_path, "rb"),
                 file_name=file.filename,
@@ -98,10 +92,10 @@ async def upload_file(
                 use_unique_file_name=True,
             )
 
-            # Determine the file type based on the file's content type.
-            file_type = "video" if file.filename.startswith("video/") else "image"
+            # Determine if the file is a video or an image based on its content type.
+            file_type = "video" if file.content_type.startswith("video/") else "image"
 
-            # Create a new Post object with the data from the upload.
+            # Create a new Post with the uploaded file's data.
             post = Post(
                 user_id=user.id,
                 caption=caption,
@@ -118,13 +112,11 @@ async def upload_file(
             await session.refresh(post)
             return post
     except Exception as e:
-        # If any exception occurs, raise an HTTP 500 error.
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        # This block ensures that the temporary file is always cleaned up.
+        # Clean up the temporary file and close the uploaded file.
         if temp_file_path and os.path.exists(temp_file_path):
             os.unlink(temp_file_path)
-        # Close the uploaded file.
         file.file.close()
 
 
@@ -134,19 +126,19 @@ async def get_feed(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Retrieves a feed of all posts from the database.
-
+    Retrieves a feed of all posts, ordered by creation date.
     Args:
+        user: The currently authenticated user, for future personalization.
         session: The database session, injected as a dependency.
-
     Returns:
-        A dictionary containing a list of all posts, ordered by creation date.
+        A dictionary containing a list of all posts, with detailed information
+        for each post, including whether the current user is the owner.
     """
-    # Execute a query to select all posts, ordered by creation date in descending order.
+    # Query for all posts, ordered from newest to oldest.
     result = await session.execute(select(Post).order_by(Post.created_at.desc()))
-    # Extract the Post objects from the result.
     posts = [row[0] for row in result.all()]
-    # Create a list of dictionaries with post data for the response.
+
+    # Format the posts data for the response.
     posts_data = []
     for post in posts:
         posts_data.append(
@@ -172,35 +164,31 @@ async def delete_post(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Deletes a post from the database.
-
+    Deletes a specific post by its ID.
     Args:
-        post_id: The ID of the post to delete.
+        post_id: The ID of the post to be deleted.
+        user: The currently authenticated user, for ownership verification.
         session: The database session, injected as a dependency.
-
     Returns:
-        A dictionary with a success message.
+        A confirmation message upon successful deletion.
     """
     try:
-        # Convert the post_id string to a UUID object.
-        post_id = uuid.UUID(post_id)
-        # Find the post in the database by its ID.
-        result = await session.execute(select(Post).where(Post.id == post_id))
+        post_id_uuid = uuid.UUID(post_id)
+        # Retrieve the post by its ID.
+        result = await session.execute(select(Post).where(Post.id == post_id_uuid))
         post = result.scalars().first()
-        # If the post is not found, raise a 404 error.
+
         if not post:
             raise HTTPException(status_code=404, detail="Post not found")
 
+        # Verify that the current user is the owner of the post.
         if post.user_id != user.id:
             raise HTTPException(
-                status_code=403, detail="You dont have access to delete this Post"
+                status_code=403, detail="You do not have permission to delete this post"
             )
-
-        # Delete the post from the database.
+        # Delete the post and commit the change.
         await session.delete(post)
-        # Commit the transaction.
         await session.commit()
         return {"success": True, "message": "Post deleted successfully"}
     except Exception as e:
-        # If any exception occurs, raise an HTTP 500 error.
         raise HTTPException(status_code=500, detail=str(e))
