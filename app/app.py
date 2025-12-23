@@ -1,3 +1,5 @@
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Depends
 from app.schemas import UserRead, UserCreate, UserUpdate
 from app.db import Post, create_db_and_tables, get_async_session, User
@@ -28,6 +30,16 @@ async def lifespan(app: FastAPI):
 
 # Create a FastAPI app instance with the lifespan context manager.
 app = FastAPI(lifespan=lifespan)
+
+# Add CORS Middleware
+# This allows requests from browsers (even if running on different ports)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Include routers for different functionalities.
 app.include_router(
@@ -192,3 +204,10 @@ async def delete_post(
         return {"success": True, "message": "Post deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+if not os.path.exists("static"):
+    os.makedirs("static")
+
+app.mount("/static", StaticFiles(directory="static", html=True), name="static")
+
+app.mount("/", StaticFiles(directory="static", html=True), name="root")
