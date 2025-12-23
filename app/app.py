@@ -214,11 +214,5 @@ if not os.path.exists("static"):
 
 app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
-# Also mount root to static for easy access (optional, but requested for "frontend file")
-# We need to be careful not to override API routes, but since API routes are defined first/later
-# FastAPI matches routes in order. Since we use `mount` for a path prefix, usually it's better to
-# put the specific API routes *before* a catch-all mount if we were mounting "/".
-# However, here we mounted "/static". Let's also create a root redirect or just guide user to /static.
-# But for simplicity, let's just mount "/" to static as well so http://localhost:8000/ works.
 # IMPORTANT: Mount root to static LAST, so it doesn't intercept API routes
 app.mount("/", StaticFiles(directory="static", html=True), name="root")
