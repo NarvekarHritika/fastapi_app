@@ -16,11 +16,18 @@
 
         <div id="login-form" class="form-container">
           <h2>Login</h2>
-          <input type="email" id="login-email" placeholder="Email" required />
+          <input
+            type="email"
+            id="login-email"
+            placeholder="Email"
+            value="hritika@gmail.com"
+            required
+          />
           <input
             type="password"
             id="login-password"
             placeholder="Password"
+            value="hritika"
             required
           />
           <button onclick="login()">Login</button>
@@ -43,6 +50,26 @@
           <button onclick="register()">Login</button>
         </div>
         <p id="auth-message"></p>
+      </div>
+
+      <div id="app-section" style="display: none">
+        <div class="header">
+          <span id="user-email"></span>
+          <button onclick="logout()">Logout</button>
+        </div>
+        <div class="upload-section">
+          <h3>Upload New Post</h3>
+          <input type="file" id="file-input" />
+          <input type="text" id="caption-input" placeholder="Caption..." />
+          <button onclick="uploadFile()">Upload</button>
+          <p id="upload-message"></p>
+        </div>
+
+        <div class="feed-section">
+          <h3>Feed</h3>
+          <button onclick="fetchFeed()">Refresh Feed</button>
+          <div id="feed-container"></div>
+        </div>
       </div>
     </div>
   </body>

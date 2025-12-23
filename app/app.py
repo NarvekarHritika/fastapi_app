@@ -1,6 +1,6 @@
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from app.schemas import UserRead, UserCreate, UserUpdate
 from app.db import Post, create_db_and_tables, get_async_session, User
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +40,7 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
 
 # Include routers for different functionalities.
 app.include_router(
@@ -205,9 +206,13 @@ async def delete_post(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# Mount the static directory to serve frontend files
+# We verify if the directory exists first to avoid errors if it hasn't been created yet
 if not os.path.exists("static"):
     os.makedirs("static")
 
 app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
+# IMPORTANT: Mount root to static LAST, so it doesn't intercept API routes
 app.mount("/", StaticFiles(directory="static", html=True), name="root")
