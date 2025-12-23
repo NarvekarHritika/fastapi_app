@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FastAPI App Frontend</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div id="auth-section">
+        <div class="tabs">
+          <button onclick="showTab('login')" class="active">Login</button>
+          <button onclick="showTab('register')">Register</button>
+        </div>
+
+        <div id="login-form" class="form-container">
+          <h2>Login</h2>
+          <input type="email" id="login-email" placeholder="Email" required />
+          <input
+            type="password"
+            id="login-password"
+            placeholder="Password"
+            required
+          />
+          <button onclick="login()">Login</button>
+        </div>
+
+        <div id="register-form" class="form-container" style="display: none">
+          <h2>Register</h2>
+          <input
+            type="email"
+            id="register-email"
+            placeholder="Email"
+            required
+          />
+          <input
+            type="password"
+            id="register-password"
+            placeholder="Password"
+            required
+          />
+          <button onclick="register()">Login</button>
+        </div>
+        <p id="auth-message"></p>
+      </div>
+    </div>
+  </body>
+  <script src="app.js"></script>
+</html>
