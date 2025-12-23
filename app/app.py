@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from app.schemas import UserRead, UserCreate, UserUpdate
 from app.db import Post, create_db_and_tables, get_async_session, User
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +30,17 @@ async def lifespan(app: FastAPI):
 
 # Create a FastAPI app instance with the lifespan context manager.
 app = FastAPI(lifespan=lifespan)
+
+# Add CORS Middleware
+# This allows requests from browsers (even if running on different ports)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
 
 # Include routers for different functionalities.
 app.include_router(
@@ -192,3 +205,20 @@ async def delete_post(
         return {"success": True, "message": "Post deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Mount the static directory to serve frontend files
+# We verify if the directory exists first to avoid errors if it hasn't been created yet
+if not os.path.exists("static"):
+    os.makedirs("static")
+
+app.mount("/static", StaticFiles(directory="static", html=True), name="static")
+
+# Also mount root to static for easy access (optional, but requested for "frontend file")
+# We need to be careful not to override API routes, but since API routes are defined first/later
+# FastAPI matches routes in order. Since we use `mount` for a path prefix, usually it's better to
+# put the specific API routes *before* a catch-all mount if we were mounting "/".
+# However, here we mounted "/static". Let's also create a root redirect or just guide user to /static.
+# But for simplicity, let's just mount "/" to static as well so http://localhost:8000/ works.
+# IMPORTANT: Mount root to static LAST, so it doesn't intercept API routes
+app.mount("/", StaticFiles(directory="static", html=True), name="root")

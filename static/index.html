@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastAPI App Frontend</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>FastAPI App</h1>
+
+        <!-- Auth Section -->
+        <div id="auth-section">
+            <div class="tabs">
+                <button onclick="showTab('login')" class="active">Login</button>
+                <button onclick="showTab('register')">Register</button>
+            </div>
+
+            <div id="login-form" class="form-container">
+                <h2>Login</h2>
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button onclick="login()">Login</button>
+            </div>
+
+            <div id="register-form" class="form-container" style="display: none;">
+                <h2>Register</h2>
+                <input type="email" id="register-email" placeholder="Email" required>
+                <input type="password" id="register-password" placeholder="Password" required>
+                <button onclick="register()">Register</button>
+            </div>
+             <p id="auth-message"></p>
+        </div>
+
+        <!-- Main App Section (Hidden by default) -->
+        <div id="app-section" style="display: none;">
+            <div class="header">
+                <span id="user-email"></span>
+                <button onclick="logout()">Logout</button>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="upload-section">
+                <h3>Upload New Post</h3>
+                <input type="file" id="file-input">
+                <input type="text" id="caption-input" placeholder="Caption...">
+                <button onclick="uploadFile()">Upload</button>
+                <p id="upload-message"></p>
+            </div>
+
+            <!-- Feed Section -->
+            <div class="feed-section">
+                <h3>Feed</h3>
+                <button onclick="fetchFeed()">Refresh Feed</button>
+                <div id="feed-container">
+                    <!-- Posts will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
