@@ -124,7 +124,7 @@ async function fetchFeed() {
       logout();
       return;
     }
-    
+
     const data = await response.json();
     renderFeed(data.posts);
   } catch (error) {
