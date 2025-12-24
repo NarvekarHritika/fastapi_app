@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8000";
+const APP_URL = "http://localhost:8000";
 
 let token = localStorage.getItem("access_token");
 // --- Initialization ---
@@ -38,7 +38,7 @@ async function login() {
   formData.append("password", password);
 
   try {
-    const response = await fetch(`${API_URL}/auth/jwt/login`, {
+    const response = await fetch(`${APP_URL}/auth/jwt/login`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: formData,
@@ -67,7 +67,7 @@ async function register() {
   const msg = document.getElementById("auth-message");
 
   try {
-    const response = fetch("${APP_URL}/auth/register", {
+    const response = await fetch(`${APP_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -116,15 +116,17 @@ async function fetchFeed() {
   const container = document.getElementById("feed-container");
   container.innerHTML = "Loading....";
   try {
-    const response = await fetch(`${API_URL}/feed`, {
+    const response = await fetch(`${APP_URL}/feed`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (response.ok) {
-      const data = await response.json();
-
-      renderFeed(data.posts);
+    if (response.status === 401) {
+      logout();
+      return;
     }
+    
+    const data = await response.json();
+    renderFeed(data.posts);
   } catch (error) {
     console.error(error);
     container.innerHTML = "Error loading Feed.";
@@ -180,7 +182,7 @@ async function uploadFile() {
   msg.textContent = "Uploading....";
 
   try {
-    const response = await fetch(`${API_URL}/upload`, {
+    const response = await fetch(`${APP_URL}/upload`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: formData,
@@ -207,7 +209,7 @@ async function deletePost(postID) {
   if (!confirm("Are you sure you want to delete this post?")) return;
 
   try {
-    const response = fetch(`${API_URL}/delete${postID}`, {
+    const response = await fetch(`${APP_URL}/delete/${postID}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
